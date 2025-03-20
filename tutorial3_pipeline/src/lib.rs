@@ -19,6 +19,8 @@ struct State<'a> {
     size: winit::dpi::PhysicalSize<u32>,
     window: &'a Window,
     render_pipeline: wgpu::RenderPipeline,
+    render_pipeline2: wgpu::RenderPipeline,
+    spacebar_pressed: bool,
 }
 
 impl<'a> State<'a> {
@@ -137,6 +139,47 @@ impl<'a> State<'a> {
             cache: None,
         });
 
+        let render_pipeline2 = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline 2"),
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main2"),
+                buffers: &[],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main2"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+                polygon_mode: wgpu::PolygonMode::Fill,
+                // Requires Features::DEPTH_CLIP_CONTROL
+                unclipped_depth: false,
+                // Requires Features::CONSERVATIVE_RASTERIZATION
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+            cache: None,
+        });
+
         Self {
             surface,
             device,
@@ -145,6 +188,8 @@ impl<'a> State<'a> {
             size,
             window,
             render_pipeline,
+            render_pipeline2,
+            spacebar_pressed: false,
         }
     }
 
@@ -164,7 +209,22 @@ impl<'a> State<'a> {
     // NOTE: Indicates if an event has been fully processed, if it returns tru the loop won't
     // proceed. Return false if there are no events to be processed.
     fn input(&mut self, event: &WindowEvent) -> bool {
-        false
+        match event {
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        state: ElementState::Pressed,
+                        physical_key: PhysicalKey::Code(KeyCode::Space),
+                        ..
+                    },
+                ..
+            } => {
+                self.spacebar_pressed = !self.spacebar_pressed;
+                true
+            }
+
+            _ => false,
+        }
     }
 
     fn update(&mut self) {
@@ -203,8 +263,13 @@ impl<'a> State<'a> {
                 timestamp_writes: None,
             });
 
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw(0..3, 0..1);
+            if self.spacebar_pressed {
+                render_pass.set_pipeline(&self.render_pipeline);
+                render_pass.draw(0..3, 0..1);
+            } else {
+                render_pass.set_pipeline(&self.render_pipeline2);
+                render_pass.draw(0..3, 0..1);
+            }
         }
 
         // submit will accept anything that implements IntoIter
