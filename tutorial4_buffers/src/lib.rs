@@ -65,6 +65,30 @@ const VERTICES: &[Vertex] = &[
 
 const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
 
+// Challenge, let's make an hexagon -------------------------------------------------
+
+const COLOR_HEX: [f32; 3] = [0.0, 0.5, 0.0];
+
+#[rustfmt::skip]
+const VERTICES_HEX: &[Vertex] = &[
+    Vertex { position: [0.0, 0.5, 0.0], color: COLOR_HEX }, // A
+    Vertex { position: [-0.25, 0.25, 0.0], color: COLOR_HEX }, // B
+    Vertex { position: [-0.25, -0.25, 0.0], color: COLOR_HEX }, // C
+    Vertex { position: [0.0, -0.5, 0.0], color: COLOR_HEX }, // D
+    Vertex { position: [0.25, -0.25, 0.0], color: COLOR_HEX }, // E
+    Vertex { position: [0.25, 0.25, 0.0], color: COLOR_HEX }, // F
+];
+
+#[rustfmt::skip]
+const INDICES_HEX: &[u16] = &[
+    0,1,5,
+    1,2,5,
+    2,3,5,
+    3,4,5,
+];
+
+// ----------------------------------------------------------------------------------
+
 struct State<'a> {
     surface: wgpu::Surface<'a>,
     device: wgpu::Device,
@@ -76,6 +100,10 @@ struct State<'a> {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
+    vertex_buffer2: wgpu::Buffer,
+    index_buffer2: wgpu::Buffer,
+    num_indices2: u32,
+    spacebar_pressed: bool,
 }
 
 impl<'a> State<'a> {
@@ -208,6 +236,20 @@ impl<'a> State<'a> {
 
         let num_indices = INDICES.len() as u32;
 
+        let vertex_buffer2 = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(VERTICES_HEX),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer2 = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(INDICES_HEX),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let num_indices2 = INDICES_HEX.len() as u32;
+
         Self {
             surface,
             device,
@@ -219,6 +261,10 @@ impl<'a> State<'a> {
             vertex_buffer,
             index_buffer,
             num_indices,
+            vertex_buffer2,
+            index_buffer2,
+            num_indices2,
+            spacebar_pressed: false,
         }
     }
 
@@ -238,7 +284,22 @@ impl<'a> State<'a> {
     // NOTE: Indicates if an event has been fully processed, if it returns tru the loop won't
     // proceed. Return false if there are no events to be processed.
     fn input(&mut self, event: &WindowEvent) -> bool {
-        false
+        match event {
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        state: ElementState::Pressed,
+                        physical_key: PhysicalKey::Code(KeyCode::Space),
+                        ..
+                    },
+                ..
+            } => {
+                self.spacebar_pressed = !self.spacebar_pressed;
+                true
+            }
+
+            _ => false,
+        }
     }
 
     fn update(&mut self) {
@@ -278,9 +339,18 @@ impl<'a> State<'a> {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+
+            if self.spacebar_pressed {
+                render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                render_pass
+                    .set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            } else {
+                render_pass.set_vertex_buffer(0, self.vertex_buffer2.slice(..));
+                render_pass
+                    .set_index_buffer(self.index_buffer2.slice(..), wgpu::IndexFormat::Uint16);
+                render_pass.draw_indexed(0..self.num_indices2, 0, 0..1);
+            }
         }
 
         // submit will accept anything that implements IntoIter
