@@ -13,6 +13,7 @@ wgpu = "24.0"
 pollster = "0.3"
 bytemuck = { version = "1.16", features = [ "derive" ] }
 anyhow = "1.0"
+cgmath = "0.18"
 
 cfg-if = "1"
 
