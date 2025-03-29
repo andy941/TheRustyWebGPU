@@ -1,3 +1,4 @@
+use cgmath::Point3;
 use winit::{
     event::*,
     keyboard::{KeyCode, PhysicalKey},
@@ -18,6 +19,7 @@ pub struct Camera {
     pub(crate) eye: cgmath::Point3<f32>,
     pub(crate) target: cgmath::Point3<f32>,
     pub(crate) up: cgmath::Vector3<f32>,
+    pub(crate) right: cgmath::Vector3<f32>,
     pub(crate) aspect: f32,
     pub(crate) fovy: f32,
     pub(crate) znear: f32,
@@ -141,5 +143,25 @@ impl CameraController {
         if self.is_left_pressed {
             camera.eye = camera.target - (forward - right * self.speed).normalize() * forward_mag;
         }
+    }
+
+    /* NOTE(andrea): Does not work as expected though. The hint of creating a new matrix does not make much
+    sense, in the solution they use a completely different approcah with:
+    `cgmath::Matrix4::from_angle_z(self.model_rotation))` applied
+    to the model view itself (in `update_camera`). At this point I have zero knowledge of
+    computer graphics, need to learn the basics somewhere else. */
+    pub fn rotate(&self, camera: &mut Camera, speed: f32) {
+        use cgmath::InnerSpace;
+
+        let forward = camera.target - camera.eye;
+        let forward_norm = forward.normalize();
+        let forward_mag = forward.magnitude();
+
+        let up = forward_norm.cross(camera.right);
+
+        // Rescale the distance between the target and the eye so
+        // that it doesn't change. The eye, therefore, still
+        // lies on the circle made by the target and eye.
+        camera.eye = camera.target - (forward + up * speed).normalize() * forward_mag;
     }
 }

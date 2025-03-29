@@ -204,7 +204,7 @@ impl<'a> State<'a> {
 
         let num_indices = INDICES.len() as u32;
 
-        let camera_controller = CameraController::new(0.1 as f32);
+        let camera_controller = CameraController::new(0.01 as f32);
         let camera = Camera {
             // position the camera 1 unit up and 2 units back
             // +z is out of the screen
@@ -213,6 +213,7 @@ impl<'a> State<'a> {
             target: (0.0, 0.0, 0.0).into(),
             // which way is "up"
             up: cgmath::Vector3::unit_y(),
+            right: cgmath::Vector3::unit_x(),
             aspect: config.width as f32 / config.height as f32,
             fovy: 45.0,
             znear: 0.1,
@@ -282,7 +283,7 @@ impl<'a> State<'a> {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: None,
                 // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
                 // Requires Features::DEPTH_CLIP_CONTROL
@@ -360,6 +361,9 @@ impl<'a> State<'a> {
 
     fn update(&mut self) {
         self.camera_controller.update_camera(&mut self.camera);
+        if self.spacebar_pressed {
+            self.camera_controller.rotate(&mut self.camera, 0.01);
+        }
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
