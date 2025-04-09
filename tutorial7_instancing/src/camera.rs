@@ -22,6 +22,7 @@ pub struct Camera {
     pub(crate) fovy: f32,
     pub(crate) znear: f32,
     pub(crate) zfar: f32,
+    pub(crate) rotation: cgmath::Deg<f32>,
 }
 
 impl Camera {
@@ -29,7 +30,7 @@ impl Camera {
         let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
 
-        return OPENGL_TO_WGPU_MATRIX * proj * view;
+        return proj * view;
     }
 }
 
@@ -52,7 +53,10 @@ impl CameraUniform {
     }
 
     pub fn update_view_proj(&mut self, camera: &Camera) {
-        self.view_proj = camera.build_view_projection_matrix().into();
+        self.view_proj = (OPENGL_TO_WGPU_MATRIX
+            * camera.build_view_projection_matrix()
+            * cgmath::Matrix4::from_angle_z(camera.rotation))
+        .into();
     }
 }
 

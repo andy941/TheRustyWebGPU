@@ -77,7 +77,7 @@ impl Instance {
     }
 }
 
-const NUM_INSTANCES_PER_ROW: u32 = 10;
+const NUM_INSTANCES_PER_ROW: u32 = 150;
 const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(
     NUM_INSTANCES_PER_ROW as f32 * 0.5,
     0.0,
@@ -213,10 +213,10 @@ impl<'a> State<'a> {
         };
 
         surface.configure(&device, &config);
-        let diffuse_bytes = include_bytes!("../happy-tree.png");
+        let diffuse_bytes = include_bytes!("../zanarellof.jpg");
 
         let diffuse_texture =
-            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "../happy-tree.png")
+            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "../zanarellof.jpg")
                 .unwrap();
 
         let texture_bind_group_layout =
@@ -288,6 +288,7 @@ impl<'a> State<'a> {
             fovy: 45.0,
             znear: 0.1,
             zfar: 100.0,
+            rotation: cgmath::Deg(0.0),
         };
 
         let mut camera_uniform = CameraUniform::new();
@@ -352,7 +353,7 @@ impl<'a> State<'a> {
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_data),
-            usage: wgpu::BufferUsages::VERTEX,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
 
         let render_pipeline_layout =
@@ -385,7 +386,7 @@ impl<'a> State<'a> {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: None,
                 // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
                 // Requires Features::DEPTH_CLIP_CONTROL
@@ -465,6 +466,26 @@ impl<'a> State<'a> {
 
     fn update(&mut self) {
         self.camera_controller.update_camera(&mut self.camera);
+        if self.spacebar_pressed {
+            // Taken form the solution, had no idea how it worked, now I am starting to get it
+            self.camera.rotation += cgmath::Deg(0.1);
+            for instance in &mut self.instances {
+                let amount =
+                    cgmath::Quaternion::from_angle_y(cgmath::Rad(std::f32::consts::PI / 360.0));
+                let current = instance.rotation;
+                instance.rotation = amount * current;
+            }
+            let instance_data = self
+                .instances
+                .iter()
+                .map(Instance::to_raw)
+                .collect::<Vec<_>>();
+            self.queue.write_buffer(
+                &self.instance_buffer,
+                0,
+                bytemuck::cast_slice(&instance_data),
+            );
+        }
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
